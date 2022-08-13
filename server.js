@@ -1,32 +1,59 @@
 import {WebSocketServer} from 'ws'
+import url from 'url'
+import {without, contains} from 'underscore'
 
+const wss = new WebSocketServer({ port: 80 });
 
-const wss = new WebSocketServer({ port: 8080 });
+let $list = [];
+let $id = 0;
 
-console.log('start')
+wss.on('connection', function connection(ws, req) {
+    const $url = url.parse(req.url, true);
+    let $username = $url.query.username;
 
-wss.on('connection', function connection(ws) {
-    console.log('connection');
-    // console.log(ws);
+    //檢查是否有重複的使用者
+    if(contains($list, $username)) {
+        $username = null;
+        ws.close();
+    }else{
+        console.log($username + 'Open connection')
+        $list.push($username);
+        ws.id = $id++;
+        //通知所有人在線使用者列表
+        noticeAllUserList(wss,$list);
+    }
+  
+ 
     ws.on('message', function message(data) {
-        console.log('received: %s', data);
-
-        let clients = wss.clients
-        //做迴圈，發送訊息至每個 client
-        clients.forEach(client => {
-            client.send(String(data))
+        const $obj = {
+            type: "message",
+            user:$username,
+            content:String(data)
+        };
+        wss.clients.forEach(client => {
+            client.send(JSON.stringify($obj));
         })
     });
 
-    // const sendNowTime = setInterval(()=>{
-    //     ws.send(String(new Date()))
-    // },3000)
-
-    ws.send('something');
-
     ws.on('close', () => {
-        //連線中斷時停止 setInterval
-        // clearInterval(sendNowTime)
-        console.log('Close connected')
+        //移除使用者
+        if($username){
+            $list = without($list, $username);
+            console.log($username + ' Close connected')
+        }
+        noticeAllUserList(wss,$list);
+      
     })
 });
+
+//通知所有人在線使用者列表
+const noticeAllUserList = (wss, $list) => {
+    wss.clients.forEach(function (client) {
+        const $obj = {
+            type: "room_information",
+            room_name: "Room",
+            list:$list
+        };
+        client.send(JSON.stringify($obj));
+    });
+}
