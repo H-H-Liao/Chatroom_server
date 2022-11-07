@@ -1,8 +1,10 @@
 import {WebSocketServer} from 'ws'
 import url from 'url'
 import {without, contains} from 'underscore'
+import dotenv from 'dotenv'
 
-const wss = new WebSocketServer({ port: 80 });
+const port = parseInt(dotenv.config('PORT',80));
+const wss = new WebSocketServer({ port: 8088 });
 
 let $list = [];
 let $id = 0;
@@ -22,8 +24,7 @@ wss.on('connection', function connection(ws, req) {
         //通知所有人在線使用者列表
         noticeAllUserList(wss,$list);
     }
-  
- 
+
     ws.on('message', function message(data) {
         const $obj = {
             type: "message",
@@ -42,7 +43,6 @@ wss.on('connection', function connection(ws, req) {
             console.log($username + ' Close connected')
         }
         noticeAllUserList(wss,$list);
-      
     })
 });
 
